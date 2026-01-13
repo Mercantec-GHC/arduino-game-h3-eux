@@ -4,10 +4,15 @@
 #include <Arduino_MKRIoTCarrier.h> //opla hardware
 #include <wifiHq.h>
 #include <displayFunc.h>
+#include <gameControls.h>
 
 MKRIoTCarrier carrier;
 WiFiClient client;
 
+String deviceId;
+
+GameState state = DISCONNECTED;
+GameState lastGameState = GAME_OVER;
 
 void setup() {
   Serial.begin(9600);
@@ -25,9 +30,31 @@ void setup() {
     while(1);
   }
 
+  deviceId = wifi_getDeviceID();
 
+  game_init (deviceId);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  delay(50);
+
+  carrier.Buttons.update();
+
+  if (state == DISCONNECTED) {
+
+  }
+
+  if (state == IN_QUEUE) {
+
+  }
+
+  if (state == IN_GAME) {
+
+  }
+
+  if (state == GAME_OVER) {
+
+  }
+
+  lastGameState = state;
 }

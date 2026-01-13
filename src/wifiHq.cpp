@@ -84,7 +84,7 @@ String readResponseBody() {
     return client.readString();
 }
 
-bool httpPost(const char* endpoint, String jsonBody, String& response) {
+bool wifi_httpPost(const char* endpoint, String jsonBody, String& response) {
     Serial.print ("POST");
     Serial.println(endpoint);
 
