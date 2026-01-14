@@ -10,17 +10,25 @@ void game_init(String deviceId) {
     game_devId = deviceId;
 }
 
-QueueResponse game_joinQueue() {
-    QueueResponse qr;
-
-    Serial.print("Joining Game...");
-
+String CreateBody() {
     JSONVar doc;
     doc["deviceId"] = game_devId;
     String json = JSON.stringify(doc);
 
+    return json;
+}
+
+QueueResponse game_joinQueue() {
+    QueueResponse qr;
+
+    qr.success = false;
+
+    Serial.println("Joining Game...");
+
+    String json = CreateBody();
+
     String postResponse;
-    if(wifi_httpPost("/joinqueue", json, postResponse)) {
+    if(wifi_httpPost("/api/joinqueue", CreateBody(), postResponse)) {
         JSONVar res = JSON.parse(postResponse);
 
         if ((bool)res["success"]) {
@@ -37,11 +45,8 @@ QueueResponse game_joinQueue() {
 
             String state = (const char*) res["state"];
 
-            if(state == "inQueue") {
+            if(state == "waiting" || state == "ready") {
                 qr.state = IN_QUEUE;
-            }
-            else {
-                //missing other states womp womp :'(
             }
         }
         else {
@@ -59,14 +64,12 @@ QueueResponse game_joinQueue() {
  HeartbeatResponse game_sendHeartbeat() {
     HeartbeatResponse hr;
 
-    Serial.print("SENDING LOVE <3");
+    Serial.println("SENDING LOVE <3");
 
-    JSONVar doc;
-    doc["deviceId"] = game_devId;
-    String json = JSON.stringify(doc);
+    String json = CreateBody();
 
     String postResponse;
-    if(wifi_httpPost("/heartbeat", json, postResponse)) {
+    if(wifi_httpPost("/api/heartbeat", CreateBody(), postResponse)) {
         JSONVar res = JSON.parse(postResponse);
 
         if ((bool)res["success"]) {
@@ -74,11 +77,14 @@ QueueResponse game_joinQueue() {
 
             String state = (const char*) res["state"];
 
-            if(state == "inQueue") {
+            if(state == "waiting" || state == "ready") {
                 hr.state = IN_QUEUE;
             }
+            else if (state == "playing"){
+                hr.state = IN_GAME;
+            }
             else {
-                //missing other states womp womp :'(
+                hr.state = GAME_OVER;
             }
 
             hr.score = (int)res["score"];
@@ -94,4 +100,29 @@ QueueResponse game_joinQueue() {
     }
 
     return hr;
+}
+
+bool game_move(bool move) {
+
+    Serial.println("YOU GOT THE MOVES LIKE JAGGER");
+
+    JSONVar doc;
+    doc["deviceId"] = game_devId;
+    doc["IsMoving"] = move;
+
+    String json = JSON.stringify(doc);
+
+    String postResponse;
+    if(wifi_httpPost("/api/move", json, postResponse)) {
+        JSONVar res = JSON.parse(postResponse);
+
+        if((bool)res["success"]) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
+    return false;
 }

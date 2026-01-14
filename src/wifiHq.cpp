@@ -7,8 +7,6 @@
 extern MKRIoTCarrier carrier;
 extern WiFiClient client;
 
-String deviceId;
-
 bool wifi_init (int timeoutMs) {
     uint8_t retries = 3;
     bool connected = false;
@@ -67,7 +65,7 @@ String wifi_getDeviceID() {
     WiFi.macAddress(mac);
     char buf[20];
     snprintf(buf, sizeof(buf), "OPLA_%02X%02X%02X", mac[3], mac[4], mac[5]);
-    deviceId = String(buf);
+    String deviceId = String(buf);
 
     Serial.print("Device ID: ");
     Serial.println(deviceId);
@@ -85,39 +83,50 @@ String readResponseBody() {
 }
 
 bool wifi_httpPost(const char* endpoint, String jsonBody, String& response) {
-    Serial.print ("POST");
-    Serial.println(endpoint);
 
-    if (!client.connect(SERVER_IP, SERVER_PORT)){
-        Serial.println(" -> Connection failed");
-        return false;
+    uint8_t retries = 3;
+    for (uint8_t i = 0; i < retries; i++)
+    {
+
+        if (!client.connect(SERVER_IP, SERVER_PORT)){
+            Serial.println(" -> Connection failed");
+            return false;
+        }
+
+        String constructedPost = "POST " + String(endpoint) + " HTTP/1.1";
+    
+        Serial.println(constructedPost);
+
+        client.println(constructedPost);
+        client.print("Host: ");
+        client.println(SERVER_IP);
+        client.println("Content-Type: application/json");
+        client.print("Content-Length: ");
+        client.println(jsonBody.length());
+        client.println("Connection: close");
+        client.println();
+        client.print(jsonBody);
+
+        String statusLine = client.readStringUntil('\n');
+        response = readResponseBody();
+        Serial.println(response);
+        client.stop();
+
+        int jsonStart = response.indexOf('{');
+        if (jsonStart >= 0) {
+            response = response.substring(jsonStart);
+        }
+
+        bool success = statusLine.indexOf("200") > 0;
+        Serial.print(" -> ");
+        Serial.println(success ? "OK" : "FAILED");
+
+        if (success) {
+            return success;
+        }
+        else {
+            Serial.println("Retrying for you" + String(i+1) + "/" + String(retries));
+            delay(500);
+        }
     }
-
-    client.print("POST");
-    client.print("endpoint");
-    client.println("HTTP/1.1");
-    client.print("Host: ");
-    client.println(SERVER_IP);
-    client.println("Conetent-Type: application/json");
-    client.print("Content-Length");
-    client.println(jsonBody.length());
-    client.println("Connection: close");
-    client.println();
-    client.print(jsonBody);
-
-    String statusLine = client.readStringUntil('\n');
-    response = readResponseBody();
-    client.stop();
-
-    int jsonStart = response.indexOf('{');
-    if (jsonStart >= 0) {
-        response = response.substring(jsonStart);
-    }
-
-    bool success = statusLine.indexOf("200") > 0;
-    Serial.print(" -> ");
-    Serial.println(success ? "OK" : "FAILED");
-
-    return success;
-
 }

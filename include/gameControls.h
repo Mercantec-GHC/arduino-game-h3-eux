@@ -30,3 +30,4 @@ typedef struct {
 void game_init(String deviceId);
 QueueResponse game_joinQueue();
 HeartbeatResponse game_sendHeartbeat();
+bool game_move(bool move);
