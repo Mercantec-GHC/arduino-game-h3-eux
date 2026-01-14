@@ -15,13 +15,19 @@ String deviceId;
 
 GameState state = DISCONNECTED;
 GameState lastGameState = GAME_OVER;
-Direction dir;
+Direction dir = MOVE_LEFT;
 
 int score = 0;
 
 unsigned long lastHeartbeat = 0;
 
 bool updateScreen = true;
+
+bool moving = false;
+
+uint32_t color_red = 0xFF0000;
+uint32_t color_green = 0x00FF00;
+uint32_t color_orange = 0xFFA500;
 
 void setup() {
   Serial.begin(9600);
@@ -54,7 +60,11 @@ void loop() {
   if (state == DISCONNECTED) {
     if (lastGameState != DISCONNECTED)
     {
+      carrier.leds.clear();
+      carrier.leds.show();
+
       display_ScreenFill(ST7735_YELLOW);
+      display_printCentered("ID: " + deviceId, 70, 1, ST7735_BLACK);
       display_printCentered("DISCONNECTED :( ", 90, 2, ST7735_BLACK);
       display_printCentered("Press (04) to join", 120, 1, ST7735_BLACK);
     }
@@ -84,9 +94,19 @@ void loop() {
   if (state == IN_QUEUE) {
 
     if(lastGameState != IN_QUEUE) {
-      display_ScreenFill(ST7735_GREEN);
-      display_printCentered("IN QUEUE WAITING...", 90, 2, ST7735_BLACK);
-      display_printCentered("STILL WAITING...", 120, 2, ST7735_BLACK);
+      display_ScreenFill(ST7735_ORANGE);
+      display_printCentered("IN QUEUE!", 90, 2, ST7735_BLACK);
+      display_printCentered("PRESS (02) TO LEAVE", 120, 2, ST7735_BLACK);
+
+      for (uint8_t i = 0; i < 5; i++) {
+        carrier.leds.setPixelColor(i, color_orange);
+      }
+      carrier.leds.show();
+    }
+
+     if (carrier.Buttons.onTouchDown(TOUCH2)) {
+        state = DISCONNECTED;
+        return;
     }
 
     handleHeartbeat();
@@ -94,47 +114,93 @@ void loop() {
 
   if (state == IN_GAME) {
 
+    if (carrier.Buttons.onTouchDown(TOUCH2)) {
+      state = DISCONNECTED;
+      return;
+    }
+
+    handleHeartbeat();
+
     String dirString = "";
 
-    if (dir == LEFT) {
+    if (dir == MOVE_LEFT) {
       dirString = "LEFT";
     }
     else {
       dirString = "RIGHT";
     }
 
+
+    touchButtons moveButton = TOUCH0;
+    touchButtons stopButton = TOUCH4;
+
+    if (dir == MOVE_RIGHT) {
+      moveButton = TOUCH4;
+      stopButton = TOUCH0;
+    } 
+    else {
+      moveButton = TOUCH0;
+      stopButton = TOUCH4;
+    }
+    
+    if (!moving) {
+      if (carrier.Buttons.onTouchDown(moveButton))
+      {
+        if (game_move(true)) {
+          for (uint8_t i = 0; i < 5; i++) {
+            carrier.leds.setPixelColor(i, color_green);
+          }
+          carrier.leds.show();
+
+          Serial.println("MOVING");
+          moving = true;
+        }
+        else {
+          Serial.println("FAILED TO MOVE");
+        }
+      }
+    } 
+    else {
+      if (carrier.Buttons.onTouchDown(stopButton)) {
+        if (game_move(false)) {
+          for (uint8_t i = 0; i < 5; i++) {
+            carrier.leds.setPixelColor(i, color_red);
+          }
+          carrier.leds.show();
+
+          moving = false;
+          updateScreen = true;
+        }
+      }
+    }
+    
     if (updateScreen) {
       display_ScreenFill(ST7735_CYAN);
-      display_printCentered("YOU ARE " + dirString, 90, 2, ST7735_BLACK);
-      display_printCentered("SCORE: " + String(score), 120, 1, ST7735_BLACK);
+      display_printCentered(dirString, 60, 2, ST7735_BLACK);
+      display_printCentered("MOVE: " + String(moveButton), 90, 2, ST7735_BLACK);
+      display_printCentered("STOP: " + String(stopButton), 120, 2, ST7735_BLACK);
+      display_printCentered("SCORE: " + String(score), 150, 1, ST7735_BLACK);
       
       updateScreen = false;
     }
-
-    if (carrier.Buttons.onTouchDown(TOUCH0) || carrier.Buttons.onTouchDown(TOUCH1) || carrier.Buttons.onTouchDown(TOUCH2) || carrier.Buttons.onTouchDown(TOUCH3) || carrier.Buttons.onTouchDown(TOUCH4)) {
-      if(game_move(true)) {
-        display_printCentered("YOU ARE MOVING DADDY", 150, 1, ST7735_BLACK);
-      }
-      else {
-        display_printCentered("YOU ARE NOT MOVING DADDY", 150, 1, ST7735_BLACK);
-      }
-
-      delay(200);
-
-      if(game_move(false)) {
-        display_printCentered("YOU AINT MOVING DADDY", 150, 1, ST7735_BLACK);
-      }
-      else {
-        display_printCentered("YOU AINT STOP MOVING DADDY", 150, 1, ST7735_BLACK);
-      }
-
-    }
-
-    handleHeartbeat();
   }
 
   if (state == GAME_OVER) {
+    if (lastGameState != GAME_OVER)
+    {
+      carrier.leds.clear();
+      carrier.leds.show();
 
+      display_ScreenFill(ST7735_BLACK);
+      display_printCentered("GAME OVER MAN!", 90, 2, ST7735_RED);
+      display_printCentered("SCORE: " + String(score), 120, 2, ST7735_RED);
+      display_printCentered("PRESS (02) TO QUIT", 150, 1, ST7735_RED);
+    }
+
+    if (carrier.Buttons.onTouchDown(TOUCH2)) {
+      state = DISCONNECTED;
+      return;
+    }
   }
 
   lastGameState = state;
