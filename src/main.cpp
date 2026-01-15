@@ -7,6 +7,8 @@
 #include <gameControls.h>
 
 void handleHeartbeat();
+void led_setAll(uint32_t color);
+void led_clear();
 
 MKRIoTCarrier carrier;
 WiFiClient client;
@@ -58,21 +60,19 @@ void loop() {
   carrier.Buttons.update();
 
   if (state == DISCONNECTED) {
-    if (lastGameState != DISCONNECTED)
-    {
-      carrier.leds.clear();
-      carrier.leds.show();
+    if (lastGameState != DISCONNECTED) {
+      led_clear();
 
-      display_ScreenFill(ST7735_YELLOW);
-      display_printCentered("ID: " + deviceId, 70, 1, ST7735_BLACK);
-      display_printCentered("DISCONNECTED :( ", 90, 2, ST7735_BLACK);
-      display_printCentered("Press (04) to join", 120, 1, ST7735_BLACK);
+      display_ScreenFill(ST7735_BLUE);
+      display_printCentered("ID: " + deviceId, 70, 1, ST7735_WHITE);
+      display_printCentered("DISCONNECTED ", 90, 2, ST7735_WHITE);
+      display_printCentered("Press (04) to join queue", 120, 1, ST7735_WHITE);
     }
     
     if(carrier.Buttons.onTouchDown(TOUCH4)) {
       display_ScreenFill(ST77XX_ORANGE);
-      display_printCentered("JOINING GAME...", 90, 2, ST7735_BLACK);
-      display_printCentered("PLEASE WAIT STILL JOINING...", 120, 1, ST7735_BLACK);
+      display_printCentered("JOINING QUEUE", 90, 2, ST7735_BLACK);
+      display_printCentered("Attempting to join queue...", 110, 1, ST7735_BLACK);
 
       QueueResponse qr = game_joinQueue();
 
@@ -80,28 +80,24 @@ void loop() {
       Serial.println("State: " + String(qr.state));
       Serial.println("Direction: " + String(qr.direction));
 
-      if (qr.success)
-      {
+      if (qr.success) {
         state = qr.state;
         dir = qr.direction;
       }
     }
     else {
-      lastGameState = GAME_OVER;
+      lastGameState = GAME_OVER; // We set this to something other than DISCONNECTED so it shows the start-screen again
     }
   }
 
   if (state == IN_QUEUE) {
 
     if(lastGameState != IN_QUEUE) {
-      display_ScreenFill(ST7735_ORANGE);
+      display_ScreenFill(ST7735_GREEN);
       display_printCentered("IN QUEUE!", 90, 2, ST7735_BLACK);
       display_printCentered("PRESS (02) TO LEAVE", 120, 2, ST7735_BLACK);
 
-      for (uint8_t i = 0; i < 5; i++) {
-        carrier.leds.setPixelColor(i, color_orange);
-      }
-      carrier.leds.show();
+      led_setAll(color_orange);
     }
 
      if (carrier.Buttons.onTouchDown(TOUCH2)) {
@@ -130,7 +126,6 @@ void loop() {
       dirString = "RIGHT";
     }
 
-
     touchButtons moveButton = TOUCH0;
     touchButtons stopButton = TOUCH4;
 
@@ -147,10 +142,7 @@ void loop() {
       if (carrier.Buttons.onTouchDown(moveButton))
       {
         if (game_move(true)) {
-          for (uint8_t i = 0; i < 5; i++) {
-            carrier.leds.setPixelColor(i, color_green);
-          }
-          carrier.leds.show();
+          led_setAll(color_green);
 
           Serial.println("MOVING");
           moving = true;
@@ -163,10 +155,7 @@ void loop() {
     else {
       if (carrier.Buttons.onTouchDown(stopButton)) {
         if (game_move(false)) {
-          for (uint8_t i = 0; i < 5; i++) {
-            carrier.leds.setPixelColor(i, color_red);
-          }
-          carrier.leds.show();
+          led_setAll(color_red);
 
           moving = false;
           updateScreen = true;
@@ -177,9 +166,18 @@ void loop() {
     if (updateScreen) {
       display_ScreenFill(ST7735_CYAN);
       display_printCentered(dirString, 60, 2, ST7735_BLACK);
-      display_printCentered("MOVE: " + String(moveButton), 90, 2, ST7735_BLACK);
-      display_printCentered("STOP: " + String(stopButton), 120, 2, ST7735_BLACK);
-      display_printCentered("SCORE: " + String(score), 150, 1, ST7735_BLACK);
+      display_printCentered("SCORE: " + String(score), 90, 2, ST7735_BLACK);
+
+      display_TextColor(ST7735_BLACK);
+
+      if (dir == MOVE_LEFT) {
+        display_Print("MOVE", 30, 160, 2);
+        display_Print("STOP", 170, 160, 2);
+      }
+      else if (dir == MOVE_RIGHT) {
+        display_Print("STOP", 30, 160, 2);
+        display_Print("MOVE", 170, 160, 2);
+      }
       
       updateScreen = false;
     }
@@ -188,8 +186,7 @@ void loop() {
   if (state == GAME_OVER) {
     if (lastGameState != GAME_OVER)
     {
-      carrier.leds.clear();
-      carrier.leds.show();
+      led_clear();
 
       display_ScreenFill(ST7735_BLACK);
       display_printCentered("GAME OVER MAN!", 90, 2, ST7735_RED);
@@ -227,4 +224,19 @@ void handleHeartbeat() {
       score = hr.score;
     }
   }
+}
+
+void led_setAll(uint32_t color)
+{
+  for (uint8_t i = 0; i < 5; i++) {
+    carrier.leds.setPixelColor(i, color);
+  }
+
+  carrier.leds.show();
+}
+
+void led_clear()
+{
+  carrier.leds.clear();
+  carrier.leds.show();
 }

@@ -16,8 +16,8 @@ enum Direction {
 
 typedef struct {
     bool success;
-    Direction direction;
     GameState state;
+    Direction direction;
 } QueueResponse;
 
 typedef struct {
