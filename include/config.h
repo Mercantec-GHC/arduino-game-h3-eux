@@ -1,6 +1,6 @@
 #include <Arduino.h>
 
-const char WIFI_SSID[] = "MAGS-OLC";
-const char WIFI_PASS[] = "Merc1234!";
-const char SERVER_IP[] = "xxx";
-const uint16_t SERVER_PORT = 0000;
+const char WIFI_SSID[] = "";
+const char WIFI_PASS[] = "";
+const char SERVER_IP[] = "";
+const uint16_t SERVER_PORT = 0;
